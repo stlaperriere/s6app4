@@ -1,4 +1,5 @@
 #include "crc.h"
+#include "frame.h"
 #define CRC_LENGTH 16
 
 class FrameParser {
@@ -16,12 +17,6 @@ class FrameParser {
             PAYLOAD,
             CONTROL,
             END,
-        };
-
-        enum Mask { // Expected values for certain fields
-            PREAMBLE_MASK = 0xAA,
-            START_MASK = 0xFC,
-            END_MASK = 0xFC
         };
 
         uint8_t* inputBuf; // Pointer to the Manchester output buffer
@@ -45,4 +40,4 @@ class FrameParser {
         void appendPayload();
         void appendControl();
         bool validateControl();
-}
+};

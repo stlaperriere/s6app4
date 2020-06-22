@@ -2,10 +2,10 @@
 
 void FrameParser::acquireData() {
     if (state == PREAMBLE) {
-        if (!FrameParser::validateInput(PREAMBLE_MASK)) isDataCorrupted = true;
+        if (!FrameParser::validateInput(Frame::PREAMBLE_MASK)) isDataCorrupted = true;
         state = START;
     } else if (state == START) {
-        if (!FrameParser::validateInput(START_MASK)) isDataCorrupted = true;
+        if (!FrameParser::validateInput(Frame::START_MASK)) isDataCorrupted = true;
         state = TYPE_AND_FLAGS;
     } else if (state == TYPE_AND_FLAGS) {
         FrameParser::setTypeAndFlags();
@@ -28,7 +28,7 @@ void FrameParser::acquireData() {
         if (!FrameParser::validateControl()) isDataCorrupted = true;
         state = END;
     } else if (state == END) {
-        if (!FrameParser::validateInput(END_MASK)) {
+        if (!FrameParser::validateInput(Frame::END_MASK)) {
             isDataCorrupted = true;
         } else {
             isDataAvailable = true;
@@ -60,7 +60,7 @@ void FrameParser::appendPayload() {
 }
 
 bool FrameParser::validateControl() {
-    unsigned short calculatedCRC = crc16((char*) payload, payloadLength);
+    unsigned short calculatedCRC = CRC::crc16((char*) payload, payloadLength);
     return crc == (uint16_t) calculatedCRC;
 }
 

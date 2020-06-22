@@ -7,5 +7,6 @@
 // bit is always assumed to be set, thus we only use 16 bits to
 // represent the 17 bit value.
 */
-
-unsigned short crc16(char *data_p, unsigned short length);
+namespace CRC {
+    unsigned short crc16(char *data_p, unsigned short length);
+}

@@ -1,6 +1,6 @@
 #include "crc.h"
 
-unsigned short crc16(char *data_p, unsigned short length)
+unsigned short CRC::crc16(char *data_p, unsigned short length)
 {
       unsigned char i;
       unsigned int data;
