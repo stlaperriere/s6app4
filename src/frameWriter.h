@@ -3,5 +3,6 @@
 
 class FrameWriter {
     public:
-        int writeFrame(uint8_t* writeBuf, uint8_t typeAndFlags, uint8_t* payload, uint8_t payloadLength);
+        void writeFrame(uint8_t* writeBuf, uint8_t typeAndFlags, uint8_t* payload, uint8_t payloadLength);
 };
+
