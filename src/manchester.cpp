@@ -112,7 +112,7 @@ namespace Manchester
 			    waitUntil([]() { return dataBuffer != nullptr; });
                 WITH_LOCK(Serial)
                 {
-                    Serial.printlnf("Starting to send %d", *dataBuffer);
+                    Serial.printlnf("Starting to send %x", *dataBuffer);
                 }
 		        attachInterruptDirect(SysTick_IRQn, onSystemTick);
                 isSending = true;
