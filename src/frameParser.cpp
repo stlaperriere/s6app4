@@ -1,6 +1,6 @@
 #include "frameParser.h"
 
-void FrameParser::acquireData(uint8_t* inputBuf) {
+void FrameParser::acquireData(const uint8_t& inputBuf) {
     if (state == PREAMBLE) {
         if (!FrameParser::validateInput(inputBuf, Frame::PREAMBLE_MASK)) isDataCorrupted = true;
         state = START;
@@ -41,27 +41,27 @@ void FrameParser::acquireData(uint8_t* inputBuf) {
     }
 }
 
-bool FrameParser::validateInput(uint8_t* inputBuf, uint8_t mask) {
-    return *inputBuf == mask;
+bool FrameParser::validateInput(const uint8_t& inputBuf, uint8_t mask) {
+    return inputBuf == mask;
 }
 
-void FrameParser::setTypeAndFlags(uint8_t* inputBuf) {
-    typeAndFlags = *inputBuf;
+void FrameParser::setTypeAndFlags(const uint8_t& inputBuf) {
+    typeAndFlags = inputBuf;
 }
 
-bool FrameParser::setPayloadLength(uint8_t* inputBuf) {
-    payloadLength = *inputBuf;
-    return *inputBuf < 80;
+bool FrameParser::setPayloadLength(const uint8_t& inputBuf) {
+    payloadLength = inputBuf;
+    return inputBuf < 80;
 }
 
-void FrameParser::appendControl(uint8_t* inputBuf) {
+void FrameParser::appendControl(const uint8_t& inputBuf) {
     crc = crc << 8;
-    crc = crc | *inputBuf; // Ca va tu marcher?
+    crc = crc | inputBuf; // Ca va tu marcher?
     crcCounter++;
 }
 
-void FrameParser::appendPayload(uint8_t* inputBuf) {
-    payload[payloadPointer++] = *inputBuf;
+void FrameParser::appendPayload(const uint8_t& inputBuf) {
+    payload[payloadPointer++] = inputBuf;
 }
 
 bool FrameParser::validateControl() {

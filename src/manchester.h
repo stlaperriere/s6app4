@@ -2,6 +2,6 @@
 
 namespace Manchester
 {
-    void init(void (*onBufferFilledCallback)(uint8_t*));
-    void send(uint8_t* data);
+    void init(void (*onByteReceivedCallback)(const uint8_t&));
+    void send(const uint8_t& data);
 }

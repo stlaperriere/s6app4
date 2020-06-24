@@ -7,16 +7,20 @@ namespace Manchester
     // PARAMETERS
     const int output_pin = D6;
     const int input_pin = D5;
+    const size_t MAX_BUFFER_SIZE = 80;
 
     namespace Sender
     {
         // PARAMETERS
         system_tick_t lastTick = 0;
-        const unsigned long sendingDelay = 500;
+        const unsigned long SENDING_DELAY = 100;
+        const int HALF_PERIOD_TICKS = 100;
+        volatile int periodTicksCounter = 0;
+        unsigned long delayBetweenSends = 0;
 
         volatile bool isSending, isMidBit, isReady = false;
 
-        volatile size_t bufferIndex, byteIndex;
+        volatile size_t byteIndex, bufferSize;
         volatile uint8_t * dataBuffer;
 
         void senderThread();
@@ -24,10 +28,13 @@ namespace Manchester
 
         void reset()
         {
-            bufferIndex = 0;
             byteIndex = 0;
             isSending = false;
-            dataBuffer = nullptr;
+            bufferSize = 0;
+            for(size_t i = 0; i < MAX_BUFFER_SIZE; i++)
+            {
+                dataBuffer[i] = 0;
+            }
         }
 
         void init()
@@ -36,60 +43,67 @@ namespace Manchester
             {
                 Serial.printlnf("Sender init");
             }
+            dataBuffer = new uint8_t[MAX_BUFFER_SIZE];
             reset();
             isReady = true;
         }
 
         void onSystemTick()
         {
-            if(!isSending)
+            if(periodTicksCounter++ % HALF_PERIOD_TICKS != 0)
                 return;
 
-            uint8_t currentData = dataBuffer[bufferIndex] >> byteIndex;
-            if((currentData & 1) == 0)
-            {
-                if(!isMidBit)
+            if(bufferSize > 0)
+            { 
+                uint8_t currentData = dataBuffer[0] >> byteIndex;
+                if((currentData & 1) == 0)
                 {
-                    pinSetFast(output_pin);
+                    if(!isMidBit)
+                    {
+                        pinSetFast(output_pin);
+                    }
+                    else 
+                    {
+                        pinResetFast(output_pin);
+                    }
                 }
-                else 
+                else  
                 {
-                    pinResetFast(output_pin);
+                    if(!isMidBit)
+                    {
+                        pinResetFast(output_pin);
+                    }
+                    else 
+                    {
+                        pinSetFast(output_pin);
+                    }
+                }
+
+                if(isMidBit)
+                    byteIndex++;
+
+                if (byteIndex >= 8)
+                {
+                    //on shift tout en avant
+                    for (size_t i = 0; i < MAX_BUFFER_SIZE - 1; i++)
+                    {
+                        dataBuffer[i] = dataBuffer[i+1];
+                    }
+                    bufferSize--;
+                    byteIndex = 0;
                 }
             }
-            else  
+            /*else
             {
-                if(!isMidBit)
-                {
-                    pinResetFast(output_pin);
-                }
-                else 
-                {
-                    pinSetFast(output_pin);
-                }
-            }
-
-            if(isMidBit)
-                byteIndex++;
-
-            if (byteIndex >= 8)
-            {
-                bufferIndex++;
-                byteIndex = 0;
-            }
-
+                os_thread_yield();
+            }*/
+            
             isMidBit = !isMidBit;
-
-            if (bufferIndex >= sizeof(dataBuffer))
-            {
-                reset();
-            }
         }
 
-        void send(uint8_t* data)
+        void send(uint8_t data)
         {
-            dataBuffer = data; // ajouter une data queue?
-            // send 1 byte à la fois?
+            dataBuffer[bufferSize++] = data;
         }
 
         void senderThread()
@@ -99,41 +113,46 @@ namespace Manchester
                 Serial.printlnf("Awaiting sender init...");
             }
             waitUntil([]() { return isReady;});
-
             while(true)
             {
-                bufferIndex = 0;
-                byteIndex = 0;
-                isMidBit = false;
-                WITH_LOCK(Serial)
+                /*WITH_LOCK(Serial)
                 {
                     Serial.printlnf("Awaiting send data buffer init...");
-                }
-			    waitUntil([]() { return dataBuffer != nullptr; });
+                }*/
+			    waitUntil([]() { return bufferSize > 0; });
                 WITH_LOCK(Serial)
                 {
-                    Serial.printlnf("Starting to send %x", *dataBuffer);
+                    Serial.printlnf("Starting to send data buffer starting with %02X", dataBuffer[0]);
                 }
-		        attachInterruptDirect(SysTick_IRQn, onSystemTick);
-                isSending = true;
-			    waitUntil([]() { return !isSending; });
+
+                periodTicksCounter = 0;
+                unsigned long d = micros() - delayBetweenSends;
+                if(delayBetweenSends > 0)
+                    periodTicksCounter = (d + 500) / 1000;
+                WITH_LOCK(Serial)
+                {
+                    Serial.printlnf("Starting period ticks = %d, delay = %d", periodTicksCounter, d);
+                }
+                attachInterruptDirect(SysTick_IRQn, onSystemTick);
+			    waitUntil([]() { return bufferSize == 0; });
                 detachInterruptDirect(SysTick_IRQn);
-                os_thread_delay_until(&lastTick, sendingDelay);
-            }
+                delayBetweenSends = micros();
+                os_thread_delay_until(&lastTick, SENDING_DELAY);
+            } 
+            
         }
     }
 
     namespace Receiver
     {
         // PARAMETERS
-        const size_t MAX_BUFFER_SIZE = 80;
-	    void (*onBufferFilled)(uint8_t*);
+	    void (*onByteReceived)(const uint8_t&);
         volatile bool isFirstEdge;
-        volatile bool isReceiving;
+        volatile bool receivingByte;
         volatile unsigned long signalStart, periodWidth;
         
-        volatile size_t bufferIndex, byteIndex;
-        uint8_t* dataBuffer;
+        volatile size_t byteIndex;
+        uint8_t byteBuffer, byteReceived;
 
         volatile unsigned long endTime;
 
@@ -143,86 +162,94 @@ namespace Manchester
         void receiverThread();
         Thread receiveThread("receiverThread", receiverThread);
 
-        void init(void (*onBufferFilledCallback)(uint8_t*))
+        void init(void (*onByteReceivedCallback)(const uint8_t&))
         {
             WITH_LOCK(Serial)
             {
                 Serial.printlnf("Receiver init");
             }
-            onBufferFilled = onBufferFilledCallback;
+            onByteReceived = onByteReceivedCallback;
 
             reset();
+            periodWidth = 0;
+            isFirstEdge = true;
+            receivingByte = false;
             pinResetFast(input_pin);
             attachInterrupt(input_pin, onEdgeChange, CHANGE);
         }
 
-        void receiverThread()
-        {
-            WITH_LOCK(Serial)
-            {
-                Serial.printlnf("Awaiting reception");
-            }
-            waitUntil([]() {  return isReceiving; });
-            WITH_LOCK(Serial)
-            {
-                Serial.printlnf("Started receiving");
-            }
-            waitUntil([]() {  return micros() - endTime > periodWidth * 5;  });
-            WITH_LOCK(Serial)
-            {
-                Serial.printlnf("Finished receiving");
-            }
-            isReceiving = false;
-            onBufferFilled(dataBuffer);
-        }
-
-        void reset()
-        {
-            if(dataBuffer != nullptr)
-                delete[] dataBuffer;
-            dataBuffer = new uint8_t[MAX_BUFFER_SIZE];
-
-            isReceiving = false;
-            endTime = 0;
-            periodWidth = 0;
-            bufferIndex = 0;
-            byteIndex = 0;
-            signalStart = micros();
-            isFirstEdge = true;
-        }
 
         inline unsigned long signalTime()
         {
             return micros() - signalStart;
         }
 
+        void reset()
+        {
+            byteBuffer = 0;
+            byteIndex = 0;
+
+            //isReceiving = false;
+            //isFirstEdge = true;
+
+            endTime = micros();
+        }
+
+        void receiverThread()
+        {
+            while(true)
+            {
+                waitUntil([]() {  return receivingByte; });
+                receivingByte = false;
+                os_thread_yield();
+                /*WITH_LOCK(Serial)
+                {
+                    Serial.printlnf("Byte received. Calling callback...");
+                }
+                onByteReceived(byteReceived);
+                byteReceived = 0;
+                WITH_LOCK(Serial)
+                {
+                    Serial.printlnf("Awaiting reception");
+                }
+                waitUntil([]() {  return isReceiving; });
+                WITH_LOCK(Serial)
+                {
+                    Serial.printlnf("Started receiving");
+                }
+                waitUntil([]() { return micros() - endTime > periodWidth * 15;  });
+                isReceiving = false;
+                WITH_LOCK(Serial)
+                {
+                    Serial.printlnf("Finished receiving");
+                }
+                reset();*/
+            }
+        }
+
         void addBitToBuffer(bool bit)
         {
+            WITH_LOCK(Serial)
+            {
+                Serial.printlnf(bit ? "1" : "0");
+            }
             ATOMIC_BLOCK()
-            {		
-                dataBuffer[bufferIndex] |= (bit ? 1 : 0) << byteIndex++;
+            {	
+                byteBuffer |= (bit ? 1 : 0) << byteIndex++;
 
                 if(byteIndex >= 8)
                 {
-                    /*
-                    CANNOT ALLOCATE MEMORY FROM AN ISR
-                    uint8_t* temp = new uint8_t[++bufferIndex];
-                    for(size_t i = 0; i < sizeof(dataBuffer); i++)
-                    {
-                        temp[i] = dataBuffer[i];
-                    }
-                    
-                    dataBuffer = new uint8_t[bufferIndex + 1];
-                    for(size_t i = 0; i < sizeof(dataBuffer); i++)
-                    {
-                        dataBuffer[i] = temp[i];
-                    }
-
-                    dataBuffer[bufferIndex] = 0;*/
-                    bufferIndex++;
+                    receivingByte = true;
+                    onByteReceived(byteBuffer);
+                    byteBuffer = 0;
                     byteIndex = 0;
                 }
             }
+        }
+
+        inline bool isTransitionOnClock()
+        {
+            return (signalTime() - periodWidth / 3) % periodWidth > 2 * periodWidth / 3;
         }
 
         void onEdgeChange()
@@ -230,8 +257,20 @@ namespace Manchester
             bool rising = pinReadFast(input_pin) == HIGH;
 
             endTime = micros(); // dès qu'on a un changement
-            if(!isReceiving)
-                isReceiving = true;
+
+            // si on a un délai entre deux changements, on entre en mode calibrate
+            // en mode calibrate: on record 3 transitions
+            // pour chaque on ajoute un 1 ou un zéro à un buffer_calibration
+            // si trois ne sont pas synchros sur la clock d'ici le prochain delay
+            // on a une erreur donc 
+            // - on reset signal start au temps du first edge de la calibration
+            // - on ajoute au buffer les transitions du buffer_calibration:
+            // ex: si on recoit 01 10 01 10 01
+            
+            WITH_LOCK(Serial)
+            {
+                Serial.print(".");
+            }
             
             if(isFirstEdge)
             {
@@ -241,15 +280,20 @@ namespace Manchester
             }
             else {
 
-                if(periodWidth == 0)
+                if (periodWidth == 0)
                 {
                     periodWidth = signalTime();
+                    /*WITH_LOCK(Serial)
+                    {
+                        Serial.printlnf("Period width: %d", periodWidth);
+                    }*/
                     addBitToBuffer(rising);
+                    // faire une moyenne sur toutes les données du préambule?
                 }
                 else
                 {
                     // si on est à la bonne place dans la période
-                    if ((signalTime() - periodWidth / 3) % periodWidth > 2 * periodWidth / 3)
+                    if (isTransitionOnClock())
                     {
                         addBitToBuffer(rising);
                     }
@@ -258,8 +302,9 @@ namespace Manchester
         }
     }
 
+
     // FUNCTIONS
-    void init(void (*onBufferFilledCallback)(uint8_t*))
+    void init(void (*onBufferFilledCallback)(const uint8_t&))
 	{
         delayMicroseconds(2000000);
         WITH_LOCK(Serial)
@@ -272,7 +317,7 @@ namespace Manchester
         Sender::init();
 	}
 
-    void send(uint8_t* data)
+    void send(const uint8_t& data)
     {
         Sender::send(data);
     }

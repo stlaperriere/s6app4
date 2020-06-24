@@ -25,11 +25,11 @@ namespace FrameLayer
 	uint8_t input_data_buffer = 0;
 	size_t frame_writer_index = 0;
 
-	void onDataBufferFilled(uint8_t* input_data_buffer)
+	void onDataBufferFilled(const uint8_t& input_data_buffer)
 	{	
 		TRY_LOCK(Serial)
 		{
-			Serial.printlnf("Data received: %x", *input_data_buffer);
+			Serial.printlnf("Data received: %x", input_data_buffer);
 		}
 
 		frameParser.acquireData(input_data_buffer);
@@ -47,7 +47,7 @@ namespace FrameLayer
 void setup() 
 {
 	Serial.begin(9600);
-	//Manchester::init(FrameLayer::onDataBufferFilled);
+	Manchester::init(FrameLayer::onDataBufferFilled);
 	//new uint8_t[80];
 	//*data = 0x55;
 	//Manchester::send(data);
@@ -73,7 +73,7 @@ void byteSenderThread() {
 				Serial.printlnf("Sending byte no.%d : %x", frameWriter.getBytePointer(), byte);
 			}*/
 
-			Manchester::send(&byte);
+			Manchester::send(byte);
 		}
 
 		os_thread_yield();
@@ -82,7 +82,7 @@ void byteSenderThread() {
 
 void testFrameParser() {
 	if (testFramePtr < 11) {
-		FrameLayer::onDataBufferFilled(&TestFrame::testData[testFramePtr++]);
+		FrameLayer::onDataBufferFilled(TestFrame::testData[testFramePtr++]);
 	} else {
 		uint8_t* data;
 		uint8_t length = frameParser.getData(data);
