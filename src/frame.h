@@ -1,3 +1,6 @@
+#ifndef FRAME_H
+#define FRAME_H
+
 #include <Particle.h>
 
 namespace Frame {
@@ -7,3 +10,5 @@ namespace Frame {
         END_MASK = 0xFC
     };
 }
+
+#endif
