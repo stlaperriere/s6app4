@@ -4,9 +4,9 @@
 
 class FrameParser {
     public:
-        FrameParser(); // Probablement specifier le buf de sortie du parser manchester
-        uint8_t* getData();
+        uint8_t getData(uint8_t* data);
         bool dataAvailable();
+        void acquireData(uint8_t* inputBuf);
 
     protected:
         enum State { // Each field has its state
@@ -19,7 +19,7 @@ class FrameParser {
             END,
         };
 
-        uint8_t* inputBuf; // Pointer to the Manchester output buffer
+        // uint8_t* inputBuf; // Pointer to the Manchester output buffer
 
         State state; // Current state for the FSM
 
@@ -33,11 +33,10 @@ class FrameParser {
         uint16_t crc = 0;
         uint8_t crcCounter = 0;
         
-        void acquireData();
-        bool validateInput(uint8_t mask);
-        void setTypeAndFlags();
-        bool setPayloadLength();
-        void appendPayload();
-        void appendControl();
+        bool validateInput(uint8_t* inputBuf, uint8_t mask);
+        void setTypeAndFlags(uint8_t* inputBuf);
+        bool setPayloadLength(uint8_t* inputBuf);
+        void appendPayload(uint8_t* inputBuf);
+        void appendControl(uint8_t* inputBuf);
         bool validateControl();
 };

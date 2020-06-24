@@ -15,6 +15,8 @@ SYSTEM_THREAD(ENABLED);
 
 Thread byteSendThread("byteSenderThread", byteSenderThread);
 FrameWriter frameWriter;
+FrameParser frameParser;
+int testFramePtr = 0;
 
 namespace FrameLayer
 {
@@ -29,6 +31,9 @@ namespace FrameLayer
 		{
 			Serial.printlnf("Data received: %x", *input_data_buffer);
 		}
+
+		frameParser.acquireData(input_data_buffer);
+
 		/*if (++frame_writer_index > sizeof(Frame)) 
 		{
 			((uint8_t*)(currentFrame))[frame_writer_index] = input_data_buffer;
@@ -42,18 +47,19 @@ namespace FrameLayer
 void setup() 
 {
 	Serial.begin(9600);
-	Manchester::init(FrameLayer::onDataBufferFilled);
+	//Manchester::init(FrameLayer::onDataBufferFilled);
 	//new uint8_t[80];
 	//*data = 0x55;
 	//Manchester::send(data);
 
 	// Create a frame to be sent
-	frameWriter.setFrame(0x11, TestFrame::testPayload, TestFrame::testPayloadLength);
+	// frameWriter.setFrame(0x11, TestFrame::testPayload, TestFrame::testPayloadLength);
 }
 
 // loop() runs over and over again, as quickly as it can execute.
 void loop() 
 {
+	testFrameParser();
 }
 
 void byteSenderThread() {
@@ -72,4 +78,24 @@ void byteSenderThread() {
 
 		os_thread_yield();
     }
+}
+
+void testFrameParser() {
+	if (testFramePtr < 11) {
+		FrameLayer::onDataBufferFilled(&TestFrame::testData[testFramePtr++]);
+	} else {
+		uint8_t* data;
+		uint8_t length = frameParser.getData(data);
+
+		WITH_LOCK(Serial) {
+			Serial.printf("Payload recieved:");
+		}
+		for (int i = 0; i < length; i++) {
+			WITH_LOCK(Serial) {
+				Serial.printf(" %x ", data[i]);
+			}
+		}
+	}
+
+	delay(500);
 }
