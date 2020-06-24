@@ -33,14 +33,6 @@ namespace FrameLayer
 		}
 
 		frameParser.acquireData(input_data_buffer);
-
-		/*if (++frame_writer_index > sizeof(Frame)) 
-		{
-			((uint8_t*)(currentFrame))[frame_writer_index] = input_data_buffer;
-
-			frame_writer_index = 0;
-			currentFrame = new Frame{};
-		}*/
 	}
 }
 
@@ -48,18 +40,15 @@ void setup()
 {
 	Serial.begin(9600);
 	Manchester::init(FrameLayer::onDataBufferFilled);
-	//new uint8_t[80];
-	//*data = 0x55;
-	//Manchester::send(data);
 
 	// Create a frame to be sent
-	// frameWriter.setFrame(0x11, TestFrame::testPayload, TestFrame::testPayloadLength);
+	frameWriter.setFrame(0x11, TestFrame::testPayload, TestFrame::testPayloadLength);
 }
 
 // loop() runs over and over again, as quickly as it can execute.
 void loop() 
 {
-	testFrameParser();
+	// unitTestFrameParser(); 
 }
 
 void byteSenderThread() {
@@ -80,7 +69,7 @@ void byteSenderThread() {
     }
 }
 
-void testFrameParser() {
+void unitTestFrameParser() {
 	if (testFramePtr < 11) {
 		FrameLayer::onDataBufferFilled(TestFrame::testData[testFramePtr++]);
 	} else {
