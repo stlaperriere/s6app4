@@ -1,6 +1,6 @@
 namespace TestFrame {
     uint8_t testData[] = {
-        0xAA, // Preamble
+        0x55, // Preamble
         0xFC, // Start
         0x11, // Type and flags
         0x04, // payload Length (in bytes)
