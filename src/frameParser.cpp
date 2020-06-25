@@ -14,19 +14,20 @@ void FrameParser::acquireData(const uint8_t& inputBuf) {
         if (!FrameParser::setPayloadLength(inputBuf)) FrameParser::raiseError(PAYLOAD_LENGTH, inputBuf);
         state = PAYLOAD;
     } else if (state == PAYLOAD) {
+        FrameParser::appendPayload(inputBuf);
         if (payloadPointer < payloadLength) {
-            FrameParser::appendPayload(inputBuf);
             state = PAYLOAD;
         } else {
             state = CONTROL;
         }
     } else if (state == CONTROL) {
+        FrameParser::appendControl(inputBuf);
         if (crcCounter < (CRC_LENGTH / 8)) {
-            FrameParser::appendControl(inputBuf);
+            state = CONTROL;
+        } else {
+            if (!FrameParser::validateControl()) FrameParser::raiseError(CONTROL, inputBuf);
+            state = END;
         }
-        
-        if (!FrameParser::validateControl()) FrameParser::raiseError(CONTROL, inputBuf);
-        state = END;
     } else if (state == END) {
         if (!FrameParser::validateInput(inputBuf, Frame::END_MASK)) {
             FrameParser::raiseError(END, inputBuf);
@@ -65,8 +66,8 @@ bool FrameParser::setPayloadLength(const uint8_t& inputBuf) {
 }
 
 void FrameParser::appendControl(const uint8_t& inputBuf) {
-    crc = crc << 8;
-    crc = crc | inputBuf; // Ca va tu marcher?
+    crc = crc << 8 * crcCounter;
+    crc = crc | inputBuf;
     crcCounter++;
 }
 
@@ -79,7 +80,7 @@ bool FrameParser::validateControl() {
     return crc == (uint16_t) calculatedCRC;
 }
 
-uint8_t FrameParser::getData(uint8_t* data) {
+uint8_t FrameParser::getData(uint8_t* &data) {
     data = payload;
     return payloadLength;
 }

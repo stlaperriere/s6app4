@@ -8,8 +8,8 @@ namespace TestFrame {
         0x22, // Payload[1]
         0x33, // Payload[2]
         0x44, // Payload[3]
-        0x02, // CRC[0]
-        0xBE, // CRC16[1]
+        0xAD, // CRC[0]
+        0x0D, // CRC16[1]
         0xFC // End
     };
 

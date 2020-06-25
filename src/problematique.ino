@@ -19,6 +19,7 @@ Timer timer(APPLICATION_DATA_CREATION_PERIOD_MS, applicationSenderCallback); // 
 FrameWriter frameWriter;
 FrameParser frameParser;
 int testFramePtr = 0;
+bool testFrameShouldHaveErrors = true;
 
 namespace FrameLayer
 {
@@ -68,7 +69,7 @@ void byteSenderThread() {
 			Manchester::send(byte);
 		}
 
-		os_thread_yield();
+		// os_thread_yield();
     }
 }
 
@@ -80,7 +81,7 @@ void applicationReaderThread() {
 		uint8_t length = frameParser.getData(data);
 
 		WITH_LOCK(Serial) {
-			Serial.print("The application has recieved: ");
+			Serial.printlnf("The application has recieved: ");
 			for (int i = 0; i < length; i++) {
 				Serial.printf(" %x ", data[i]);
 			}
@@ -92,15 +93,14 @@ void applicationReaderThread() {
 
 void applicationSenderCallback() {
 	frameWriter.reset();
-	frameWriter.setFrame(0x11, TestFrame::testPayload, TestFrame::testPayloadLength);
 
-	/*
 	if (testFrameShouldHaveErrors) { // Aux fins de test, on cree volontairement des trames erronees.
-		frameWriter.setFaultyBit(17);
+		frameWriter.setFaultyFrame(0x11, TestFrame::testPayload, TestFrame::testPayloadLength, 12);
 		testFrameShouldHaveErrors = false;
 	} else {
+		frameWriter.setFrame(0x11, TestFrame::testPayload, TestFrame::testPayloadLength);
 		testFrameShouldHaveErrors = true;
-	}*/
+	}
 }
 
 void unitTestFrameParser() {
