@@ -30,11 +30,6 @@ namespace FrameLayer
 
 	void onDataBufferFilled(const uint8_t& input_data_buffer)
 	{	
-		TRY_LOCK(Serial)
-		{
-			Serial.printlnf("Data received: %x", input_data_buffer);
-		}
-
 		frameParser.acquireData(input_data_buffer);
 	}
 }
@@ -62,12 +57,6 @@ void byteSenderThread() {
 		ATOMIC_BLOCK() {
 			uint8_t byte = 0;
 			while (frameWriter.nextByte(&byte)) {
-
-				/*
-				WITH_LOCK(Serial) {
-					Serial.printlnf("Sending byte no.%d : %x", frameWriter.getBytePointer(), byte);
-				}*/
-
 				Manchester::send(byte);
 			}
 		}

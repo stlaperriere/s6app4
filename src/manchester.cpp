@@ -13,7 +13,7 @@ namespace Manchester
     {
         // PARAMETERS
         system_tick_t lastTick = 0;
-        const int HALF_PERIOD_TICKS = 5;
+        const int HALF_PERIOD_TICKS = 1;
         const unsigned long SENDING_DELAY = 30 * HALF_PERIOD_TICKS;
         volatile int periodTicksCounter = 0;
         unsigned long delayBetweenSends = 0;
@@ -137,11 +137,15 @@ namespace Manchester
                 {
                     Serial.printlnf("Starting period ticks = %d, delay = %d", periodTicksCounter, d);
                 }*/
+                int start = micros();
                 readyToStop = false;
                 attachInterruptDirect(SysTick_IRQn, onSystemTick);
 			    waitUntil([]() { return readyToStop; });
                 detachInterruptDirect(SysTick_IRQn);
                 //delayBetweenSends = micros();
+                WITH_LOCK(Serial) {
+                Serial.printlnf("TIME: %d", micros() - start);
+                }
                 os_thread_delay_until(&lastTick, SENDING_DELAY);
             } 
             
