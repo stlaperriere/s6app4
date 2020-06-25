@@ -15,6 +15,7 @@ SYSTEM_THREAD(ENABLED);
 
 Thread byteSendThread("byteSenderThread", byteSenderThread);
 Thread applicationReadThread("applicationReadThread", applicationReaderThread); // Simulation des couches superieures
+Timer timer(APPLICATION_DATA_CREATION_PERIOD_MS, applicationSenderCallback); // Simulation de la creation et l'envoi de donnees depuis les couches superieures
 FrameWriter frameWriter;
 FrameParser frameParser;
 int testFramePtr = 0;
@@ -44,6 +45,7 @@ void setup()
 
 	// Create a frame to be sent
 	frameWriter.setFrame(0x11, TestFrame::testPayload, TestFrame::testPayloadLength);
+	timer.start(); // The next frames will be created here
 }
 
 // loop() runs over and over again, as quickly as it can execute.
@@ -86,6 +88,19 @@ void applicationReaderThread() {
 
 		frameParser.reset();
 	}
+}
+
+void applicationSenderCallback() {
+	frameWriter.reset();
+	frameWriter.setFrame(0x11, TestFrame::testPayload, TestFrame::testPayloadLength);
+
+	/*
+	if (testFrameShouldHaveErrors) { // Aux fins de test, on cree volontairement des trames erronees.
+		frameWriter.setFaultyBit(17);
+		testFrameShouldHaveErrors = false;
+	} else {
+		testFrameShouldHaveErrors = true;
+	}*/
 }
 
 void unitTestFrameParser() {
