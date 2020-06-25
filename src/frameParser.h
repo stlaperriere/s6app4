@@ -7,7 +7,8 @@ class FrameParser {
         uint8_t getData(uint8_t* data);
         bool dataAvailable();
         void acquireData(const uint8_t& inputBuf);
-         void reset();
+        void reset();
+        void raiseError();
 
     protected:
         enum State { // Each field has its state
