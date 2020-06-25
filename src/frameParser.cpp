@@ -2,16 +2,16 @@
 
 void FrameParser::acquireData(const uint8_t& inputBuf) {
     if (state == PREAMBLE) {
-        if (!FrameParser::validateInput(inputBuf, Frame::PREAMBLE_MASK)) isDataCorrupted = true;
+        if (!FrameParser::validateInput(inputBuf, Frame::PREAMBLE_MASK)) FrameParser::raiseError();
         state = START;
     } else if (state == START) {
-        if (!FrameParser::validateInput(inputBuf, Frame::START_MASK)) isDataCorrupted = true;
+        if (!FrameParser::validateInput(inputBuf, Frame::START_MASK)) FrameParser::raiseError();
         state = TYPE_AND_FLAGS;
     } else if (state == TYPE_AND_FLAGS) {
         FrameParser::setTypeAndFlags(inputBuf);
         state = PAYLOAD_LENGTH;
     } else if (state == PAYLOAD_LENGTH) {
-        if (!FrameParser::setPayloadLength(inputBuf)) isDataCorrupted = true;
+        if (!FrameParser::setPayloadLength(inputBuf)) FrameParser::raiseError();
         state = PAYLOAD;
     } else if (state == PAYLOAD) {
         if (payloadPointer < payloadLength) {
@@ -25,18 +25,26 @@ void FrameParser::acquireData(const uint8_t& inputBuf) {
             FrameParser::appendControl(inputBuf);
         }
         
-        if (!FrameParser::validateControl()) isDataCorrupted = true;
+        if (!FrameParser::validateControl()) FrameParser::raiseError();
         state = END;
     } else if (state == END) {
         if (!FrameParser::validateInput(inputBuf, Frame::END_MASK)) {
-            isDataCorrupted = true;
-        } else {
+            FrameParser::raiseError();
+        } 
+        
+        if (!isDataCorrupted) {
             isDataAvailable = true;
             
             WITH_LOCK(Serial)
             {
-                Serial.printlnf("Frame COMPLETE!");
+                Serial.printlnf("Frame SUCCES!");
             }
+        } else {
+            WITH_LOCK(Serial)
+            {
+                Serial.printlnf("Frame FAIL!");
+            }
+            FrameParser::reset();
         }
     }
 }
@@ -94,5 +102,14 @@ void FrameParser::reset() {
 
     WITH_LOCK(Serial) {
         Serial.printlnf("FrameParser reset");
+    }
+}
+
+void FrameParser::raiseError() {
+    isDataCorrupted = true;
+    isDataAvailable = false;
+
+    WITH_LOCK(Serial) {
+        Serial.printlnf("Frame HAS ERRORS!");
     }
 }
