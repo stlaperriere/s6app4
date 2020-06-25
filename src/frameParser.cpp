@@ -77,3 +77,22 @@ uint8_t FrameParser::getData(uint8_t* data) {
 bool FrameParser::dataAvailable() {
     return isDataAvailable;
 }
+
+void FrameParser::reset() {
+    isDataAvailable = false;
+    isDataCorrupted = false;
+    payloadLength = 0;
+    payloadPointer = 0;
+    crc = 0;
+    crcCounter = 0;
+
+    for (int i = 0; i < 80; i++) {
+        payload[i] = 0;
+    }
+
+    state = PREAMBLE;
+
+    WITH_LOCK(Serial) {
+        Serial.printlnf("FrameParser reset");
+    }
+}

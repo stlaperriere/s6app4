@@ -14,6 +14,7 @@
 SYSTEM_THREAD(ENABLED);
 
 Thread byteSendThread("byteSenderThread", byteSenderThread);
+Thread applicationReadThread("applicationReadThread", applicationReaderThread); // Simulation des couches superieures
 FrameWriter frameWriter;
 FrameParser frameParser;
 int testFramePtr = 0;
@@ -67,6 +68,24 @@ void byteSenderThread() {
 
 		os_thread_yield();
     }
+}
+
+void applicationReaderThread() {
+	while(true) {
+		waitUntil([]() { return frameParser.dataAvailable(); });
+
+		uint8_t* data;
+		uint8_t length = frameParser.getData(data);
+
+		WITH_LOCK(Serial) {
+			Serial.print("The application has recieved: ");
+			for (int i = 0; i < length; i++) {
+				Serial.printf(" %x ", data[i]);
+			}
+		}
+
+		frameParser.reset();
+	}
 }
 
 void unitTestFrameParser() {
