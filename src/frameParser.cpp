@@ -46,6 +46,8 @@ void FrameParser::acquireData(const uint8_t& inputBuf) {
             }
             FrameParser::reset();
         }
+    } else {
+        FrameParser::raiseError();
     }
 }
 
