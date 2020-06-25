@@ -59,18 +59,19 @@ void byteSenderThread() {
     while(true) {
         waitUntil([]() { return frameWriter.frameReady(); });
 
-		uint8_t byte = 0;
-		if (frameWriter.nextByte(&byte)) {
-			/*
-			WITH_LOCK(Serial) {
-				Serial.printlnf("Sending byte no.%d : %x", frameWriter.getBytePointer(), byte);
-			}*/
+		ATOMIC_BLOCK() {
+			uint8_t byte = 0;
+			while (frameWriter.nextByte(&byte)) {
 
-			Manchester::send(byte);
+				/*
+				WITH_LOCK(Serial) {
+					Serial.printlnf("Sending byte no.%d : %x", frameWriter.getBytePointer(), byte);
+				}*/
+
+				Manchester::send(byte);
+			}
 		}
-
-		// os_thread_yield();
-    }
+	}
 }
 
 void applicationReaderThread() {
