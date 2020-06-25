@@ -8,7 +8,6 @@ class FrameParser {
         bool dataAvailable();
         void acquireData(const uint8_t& inputBuf);
         void reset();
-        void raiseError();
 
     protected:
         enum State { // Each field has its state
@@ -19,6 +18,7 @@ class FrameParser {
             PAYLOAD,
             CONTROL,
             END,
+            DEFAULT
         };
 
         // const uint8_t& inputBuf; // Pointer to the Manchester output buffer
@@ -41,4 +41,5 @@ class FrameParser {
         void appendPayload(const uint8_t& inputBuf);
         void appendControl(const uint8_t& inputBuf);
         bool validateControl();
+        void raiseError(State state, const uint8_t& inputBuf);
 };

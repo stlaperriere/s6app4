@@ -2,16 +2,16 @@
 
 void FrameParser::acquireData(const uint8_t& inputBuf) {
     if (state == PREAMBLE) {
-        if (!FrameParser::validateInput(inputBuf, Frame::PREAMBLE_MASK)) FrameParser::raiseError();
+        if (!FrameParser::validateInput(inputBuf, Frame::PREAMBLE_MASK)) FrameParser::raiseError(PREAMBLE, inputBuf);
         state = START;
     } else if (state == START) {
-        if (!FrameParser::validateInput(inputBuf, Frame::START_MASK)) FrameParser::raiseError();
+        if (!FrameParser::validateInput(inputBuf, Frame::START_MASK)) FrameParser::raiseError(START, inputBuf);
         state = TYPE_AND_FLAGS;
     } else if (state == TYPE_AND_FLAGS) {
         FrameParser::setTypeAndFlags(inputBuf);
         state = PAYLOAD_LENGTH;
     } else if (state == PAYLOAD_LENGTH) {
-        if (!FrameParser::setPayloadLength(inputBuf)) FrameParser::raiseError();
+        if (!FrameParser::setPayloadLength(inputBuf)) FrameParser::raiseError(PAYLOAD_LENGTH, inputBuf);
         state = PAYLOAD;
     } else if (state == PAYLOAD) {
         if (payloadPointer < payloadLength) {
@@ -25,11 +25,11 @@ void FrameParser::acquireData(const uint8_t& inputBuf) {
             FrameParser::appendControl(inputBuf);
         }
         
-        if (!FrameParser::validateControl()) FrameParser::raiseError();
+        if (!FrameParser::validateControl()) FrameParser::raiseError(CONTROL, inputBuf);
         state = END;
     } else if (state == END) {
         if (!FrameParser::validateInput(inputBuf, Frame::END_MASK)) {
-            FrameParser::raiseError();
+            FrameParser::raiseError(END, inputBuf);
         } 
         
         if (!isDataCorrupted) {
@@ -47,7 +47,7 @@ void FrameParser::acquireData(const uint8_t& inputBuf) {
             FrameParser::reset();
         }
     } else {
-        FrameParser::raiseError();
+        FrameParser::raiseError(DEFAULT, inputBuf);
     }
 }
 
@@ -107,11 +107,11 @@ void FrameParser::reset() {
     }
 }
 
-void FrameParser::raiseError() {
+void FrameParser::raiseError(State state, const uint8_t& inputBuf) {
     isDataCorrupted = true;
     isDataAvailable = false;
 
     WITH_LOCK(Serial) {
-        Serial.printlnf("Frame HAS ERRORS!");
+        Serial.printlnf("Frame HAS ERRORS in state %d, value: %x", state, inputBuf);
     }
 }

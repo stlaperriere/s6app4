@@ -235,10 +235,11 @@ namespace Manchester
                     if(micros() - lastPinChange > periodWidth * 5 && periodWidth > 0)
                     {
                         reset();
+                        /*
                         WITH_LOCK(Serial)
                         {
                             Serial.printlnf("RESET");
-                        }
+                        }*/
                     }
                 }
                 lastPinState = pinState;
